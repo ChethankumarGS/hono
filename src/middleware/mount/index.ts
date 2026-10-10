@@ -18,9 +18,35 @@ type MountOptions =
       replaceRequest?: MountReplaceRequest | false
     }
 
+/**
+ * Resolve the concrete prefix of `path` matched by the route path.
+ * Parameter segments (e.g. `:version`, `:id{[0-9]+}`) consume one concrete
+ * path segment whose length differs from the parameter in the route path,
+ * so the prefix cannot be derived from the route path string alone.
+ */
+const resolvePathPrefix = (routePath: string, path: string): string => {
+  if (!routePath.includes(':')) {
+    return routePath
+  }
+  const routeSegments = routePath.split('/')
+  const pathSegments = path.split('/')
+  let length = 0
+  for (let i = 0; i < routeSegments.length; i++) {
+    const segment = pathSegments[i]
+    if (segment === undefined) {
+      break
+    }
+    length += segment.length
+    if (i < routeSegments.length - 1) {
+      length += 1
+    }
+  }
+  return path.slice(0, length)
+}
+
 const defaultReplaceRequest = (c: Context): Request => {
   // e.g. `/another-app/*` (basePath is already merged) -> `/another-app`
-  const pathPrefix = routePath(c).replace(/\/\*$/, '')
+  const pathPrefix = resolvePathPrefix(routePath(c).replace(/\/\*$/, ''), c.req.path)
   const url = new URL(c.req.raw.url)
   url.pathname = c.req.path.slice(pathPrefix.length) || '/'
   return new Request(url, c.req.raw)
