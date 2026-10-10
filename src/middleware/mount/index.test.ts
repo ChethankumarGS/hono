@@ -172,6 +172,50 @@ describe('mount()', () => {
     })
   })
 
+  describe('With parameterized mount prefix', () => {
+    const anotherApp = (req: Request) => new Response(getPath(req))
+
+    it('Should strip the concrete prefix matched by a :param segment', async () => {
+      const app = new Hono()
+      app.all('/api/:version/*', mount(anotherApp))
+
+      const res = await app.request('/api/v1/hello')
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('/hello')
+    })
+
+    it('Should map the root of a parameterized mount to /', async () => {
+      const app = new Hono()
+      app.all('/api/:version/*', mount(anotherApp))
+
+      const res = await app.request('/api/v1')
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('/')
+    })
+
+    it('Should strip the concrete prefix matched by a regex param segment', async () => {
+      const app = new Hono()
+      app.all('/r/:id{[0-9]+}/files/*', mount(anotherApp))
+
+      const res = await app.request('/r/42/files/a/b')
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('/a/b')
+    })
+
+    it('Should preserve encoded characters in the path after a parameterized prefix', async () => {
+      const app = new Hono()
+      app.all('/api/:version/*', mount(anotherApp))
+
+      const res = await app.request('/api/ad%2Fmin/x%252Fy')
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('/x%252Fy')
+    })
+  })
+
   describe('With fetch', () => {
     const anotherApp = async (req: Request, env: {}, executionContext: ExecutionContext) => {
       const path = getPath(req)
